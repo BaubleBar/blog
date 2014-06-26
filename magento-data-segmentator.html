@@ -1,0 +1,124 @@
+<p>
+  In a fast-moving engineering culture, the ability to quickly push production data to different environments is critical for productivity.
+</p>
+<p>
+  This becomes more than just a giant roadblock. 
+</p>
+<p>
+  If the process is slow, engineers will tend to avoid syncing their personal development instances and work with severely outdated database schema.
+</p>
+<p>
+  This will result in the increase of testing times and the number of bugs that slip into production.
+</p>
+<h1>Problem</h1>
+<p>
+  At BaubleBar we are leveraging Magento EE 1.1x as our core platform.
+</p>
+<p>
+  If you are familiar with Magento then you probably know the amount of relational data layers the entities have.
+</p>
+<p>
+  A single Magento order starts with a simple quote (which is essentially a customer&#39;s cart), which has its own shipping, payment and address associations. 
+</p>
+<p>
+  When the quote gets converted to an actual order, Magento will duplicate most of the quote data on the order level.
+</p>
+<p>
+  It will then spread data such as shipping, invoicing, gifting, etc. across a dozen of other tables.
+</p>
+<p>
+  If your store front has a relatively low volume of orders, then you probably can still dump your Magento database, import it to a desired environment and sanitize it within a few minutes.
+</p>
+<p>
+  Our case is little bit different. 
+</p>
+<p>
+  We peak at thousands of orders per day and our catalog boasts over 16,500 products. 
+</p>
+<p>
+  Add a dozen of different product attributes to the mix and you will end up with a pretty large, fast growing chunk of data that needs to be pushed from one place to another on a regular basis.
+</p>
+<p>
+  At the moment our database size is around 10 GB. That might not sound like much, but when you factor in all of the data relations and the fact that we need to export and reimport everything as fast as possible, the traditional approach was no longer viable.
+</p>
+<h1>Solution</h1>
+<p>
+  Our solution was to build <a href="https://github.com/BaubleBar/magento-data-segmentator">Magento Data Segmentator</a>.
+</p>
+<p>
+  It&#39;s an extremely lightweight bash script that will extract desired customer segments from your Magento database.
+</p>
+<p>
+  At first, the script will generate all of the table schema, followed by a data dump that skips all of the customer and associative data.
+</p>
+<p>
+  We also ignore generic log, event and reporting data. This effectively leaves you with a clean copy of your Magento store--minus the customers, quotes and orders.
+</p>
+<p>
+  Using the above as a foundation, the script then converts your criteria and uses it to generate a list of customer identifiers.
+</p>
+<p>
+  Those identifiers are used to generate and append customer data with all of the proper associations.
+</p>
+<h1>Numbers</h1>
+<p>
+  Before the introduction of Magento Data Segmentator, our database syncs would generally take 1.5 hours and generate a 4 GB (compressed) dump.
+</p>
+<p>
+  With Magento Data Segmentator, we are grabbing all of the customers that signed up within last 7 days and limit that pool to 1000 total results.
+</p>
+<p>
+  The average sync takes about 10 minutes and produces a pretty small database dump that hovers around 60 MB after compression.
+</p>
+<p>
+  Since you are grabbing the latest segment, your sync times will remain relatively flat, even if your data grows. 
+</p>
+<p>
+  The traditional approach on the other hand, does not scale. New customers and orders produce additional overhead for data exports.
+</p>
+<p>
+  Eventually those small increments add up, effectively slowing everything down.
+</p>
+<h1>Best Practices</h1>
+<h4>Data Retention</h4>
+<p>
+  Even if you are not dealing with a large amount of data, you can still use Magento Data Segmentator to limit the exposure of your customers&#39; data.
+</p>
+<p>
+  In general, engineers do not need all of the customer and order data within their development instance.
+</p>
+<p>
+  When pulling data for those instances, simply limit the number of customers to the last couple of days using the -d flag. 
+</p>
+<p>
+  You can also enforce a global limit of customers the script can import with the -l flag.
+</p>
+<p>
+  Now if somebody misplaces their laptop, only a small chunk of customer data will be exposed.
+</p>
+<h4>Pulling From Production</h4>
+<p>
+  If you are not using replication for your Magento store, make sure to watch what kind of impact data export will have on your customers.
+</p>
+<p>
+  We recommend that you have replication in place and dedicate a single slave server for handling export requests.
+</p>
+<p>
+  This should be fine tuned to your organization size and its demand for fresh data.
+</p>
+<h4>Encryption</h4>
+<p>
+  As soon as the database dump is generated, it should be encrypted with a one way key.
+</p>
+<p>
+  You can then send the file over to its destination using a secure channel such as SFTP.
+</p>
+<p>
+  The destination should then decrypt it using the temporary key. The key should be recycled shortly after.
+</p>
+<h2>Fork It</h2>
+<p>
+  https://github.com/BaubleBar/magento-data-segmentator
+</p>
+<br/>
+<small><em>Aleksey tweets at <a href="http://www.twitter.com/alekseykorzun">@alekseykorzun</a> and blogs at <a href="http://www.alekseykorzun.com">alekseykorzun.com</a>.</em></small>
